@@ -2,7 +2,6 @@
 
 set -euo pipefail
 
-# TODO: Ensure this is the correct GitHub homepage where releases can be downloaded for rpk.
 GH_REPO="https://github.com/redpanda-data/redpanda"
 TOOL_NAME="rpk"
 TOOL_TEST="rpk --help"
@@ -14,10 +13,24 @@ fail() {
 
 curl_opts=(-fsSL)
 
-# NOTE: You might want to remove this if rpk is not hosted on GitHub releases.
 if [ -n "${GITHUB_API_TOKEN:-}" ]; then
   curl_opts=("${curl_opts[@]}" -H "Authorization: token $GITHUB_API_TOKEN")
 fi
+
+detect_platform() {
+  echo "$(uname | tr '[:upper:]' '[:lower:]')"
+}
+
+detect_arch() {
+  local arch=$(uname -m)
+  case $arch in
+    aarch64) arch="arm64";;
+    x86_64) arch="amd64";;
+    *) arch="unsupported";;
+  esac
+  echo "$arch"
+}
+
 
 sort_versions() {
   sed 'h; s/[+-]/./g; s/.p\([[:digit:]]\)/.z\1/; s/$/.z/; G; s/\n/ /' |
@@ -25,27 +38,17 @@ sort_versions() {
 }
 
 list_github_tags() {
+  # List only tags prefixed with v, exclude beta and rc
   git ls-remote --tags --refs "$GH_REPO" |
-    grep -o 'refs/tags/.*' | cut -d/ -f3- |
-    sed 's/^v//' # NOTE: You might want to adapt this sed to remove non-version strings from tags
+    grep -o 'refs/tags/.*' |
+    cut -d/ -f3- |
+    grep -v '\-\(beta\|rc\)[0-9]\+' |
+    grep -v '^release\-' |
+    sed 's/^v//'
 }
 
 list_all_versions() {
-  # TODO: Adapt this. By default we simply list the tag names from GitHub releases.
-  # Change this function if rpk has other means of determining installable versions.
   list_github_tags
-}
-
-download_release() {
-  local version filename url
-  version="$1"
-  filename="$2"
-
-  # TODO: Adapt the release URL convention for rpk
-  url="$GH_REPO/archive/v${version}.tar.gz"
-
-  echo "* Downloading $TOOL_NAME release $version..."
-  curl "${curl_opts[@]}" -o "$filename" -C - "$url" || fail "Could not download $url"
 }
 
 install_version() {
