@@ -24,13 +24,12 @@ detect_platform() {
 detect_arch() {
   local arch=$(uname -m)
   case $arch in
-    aarch64) arch="arm64";;
-    x86_64) arch="amd64";;
-    *) arch="unsupported";;
+  aarch64) arch="arm64" ;;
+  x86_64) arch="amd64" ;;
+  *) arch="unsupported" ;;
   esac
   echo "$arch"
 }
-
 
 sort_versions() {
   sed 'h; s/[+-]/./g; s/.p\([[:digit:]]\)/.z\1/; s/$/.z/; G; s/\n/ /' |
